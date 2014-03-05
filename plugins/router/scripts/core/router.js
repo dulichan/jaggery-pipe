@@ -45,7 +45,45 @@ var handle = function (req, res, session, handlers) {
     handlers();
 };
 
-
+/* 
+    A wrapper object that wraps request, response, session and few utility methods
+*/
+var RouteAction = function(request, response, session, params){
+    var route_action = {};
+    route_action._req = request;
+    route_action._res = response;
+    route_action._session = session;
+    route_action._params = params;
+    route_action._query = function(){
+        return request.getAllParameters();
+    };
+    route_action._body = function(){
+        var content=request.getContent();
+        var contentObj={};
+        //Only parse if the user has provided any content
+        if(content){
+           contentObj=parse(content);
+        }
+        return contentObj;
+    };
+    route_action._headers = function(){
+        return request.getAllHeaders();
+    };
+    route_action._files = function(){
+        var files = request.getAllFiles();
+        var files_array = [];
+        for(var name in files) {
+            if(files.hasOwnProperty(name)) {
+                files_array.push({
+                    name : name,
+                    file : files[name]
+                });
+            }
+        }
+        return files_array;
+    }
+    return route_action;
+}
 
 
 var exec = (function (RouteMap) {
@@ -92,9 +130,8 @@ var exec = (function (RouteMap) {
             return { error: 404 , msg:'Could not find route! ', data:{}};
         }
 
-        req.params=match.params;
-        return match.ref(req,res,session)||{};
-        //return {};
+        var route_action = new RouteAction(req,res,session, match.params);
+        return match.ref(route_action)||{};
     };
 
     app.config=function(options){
